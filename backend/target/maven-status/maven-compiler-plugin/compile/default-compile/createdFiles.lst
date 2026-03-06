@@ -1,0 +1,5 @@
+com\hustle\zuzo\model\Card.class
+com\hustle\zuzo\repository\CardRepository.class
+com\hustle\zuzo\controller\SeedController.class
+com\hustle\zuzo\controller\CardController.class
+com\hustle\zuzo\ZuzoApplication.class
