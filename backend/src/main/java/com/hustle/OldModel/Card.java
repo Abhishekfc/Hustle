@@ -1,4 +1,4 @@
-package com.hustle.zuzo.model;
+package com.hustle.OldModel;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Entity;

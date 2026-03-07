@@ -1,7 +1,7 @@
-package com.hustle.zuzo.controller;
+package com.hustle.controller;
 
-import com.hustle.zuzo.model.Card;
-import com.hustle.zuzo.repository.CardRepository;
+import com.hustle.OldModel.Card;
+import com.hustle.repository.CardRepository;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.ResponseEntity;

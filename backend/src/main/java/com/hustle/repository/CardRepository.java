@@ -1,6 +1,6 @@
-package com.hustle.zuzo.repository;
+package com.hustle.repository;
 
-import com.hustle.zuzo.model.Card;
+import com.hustle.OldModel.Card;
 import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
