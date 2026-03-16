@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_BASE } from '../../constants/api'
-import { MOCK_CARDS } from '../../constants/cards'
+import { getCampaigns } from '../../api/campaignApi'
 
-function HomeContent({ activeFilter, setActiveFilter }) {
-  const [cards, setCards] = useState([])
-  const [sortBy] = useState('default')
+function HomeContent({ activeFilter }) {
+  const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -13,52 +11,46 @@ function HomeContent({ activeFilter, setActiveFilter }) {
     const run = async () => {
       setLoading(true)
       try {
-        const params = new URLSearchParams()
-        if (activeFilter !== 'All') params.append('category', activeFilter)
-        if (sortBy !== 'default') params.append('sort', sortBy)
-        const url = `${API_BASE}/cards${params.toString() ? '?' + params : ''}`
-        const res = await fetch(url)
-        if (!res.ok) throw new Error('API not available')
+        const res = await getCampaigns()
+        if (!res.ok) throw new Error()
         const data = await res.json()
-        if (!cancelled) setCards(data)
-      } catch (_) {
-        let filtered = MOCK_CARDS
-        if (activeFilter !== 'All') filtered = MOCK_CARDS.filter((c) => c.category === activeFilter)
-        if (sortBy === 'az') filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
-        else if (sortBy === 'za') filtered = [...filtered].sort((a, b) => b.title.localeCompare(a.title))
-        if (!cancelled) setCards(filtered)
+        if (!cancelled) setCampaigns(data)
+      } catch {
+        if (!cancelled) setCampaigns([])
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     run()
-    return () => {
-      cancelled = true
-    }
-  }, [activeFilter, sortBy])
+    return () => { cancelled = true }
+  }, [])
+
+  const filtered = activeFilter === 'All'
+    ? campaigns
+    : campaigns.filter(c => c.category === activeFilter.toUpperCase())
 
   return (
     <main className="cards-section">
       {loading ? (
-        <div className="loading">Loading cards...</div>
+        <div className="loading">Loading campaigns...</div>
       ) : (
         <div className="card-grid">
-          {cards.map((card) => (
-            <Link key={card._id} to={`/campaign/${card._id}`} className="card card-clickable">
+          {filtered.map((campaign) => (
+            <Link key={campaign.id} to={`/campaign/${campaign.id}`} className="card card-clickable">
               <div className="card-image">
-                <span className="card-letter">{card.letter}</span>
+                <span className="card-letter">{campaign.title?.[0]?.toUpperCase()}</span>
               </div>
               <div className="card-content">
-                <h3 className="card-title">{card.title}</h3>
-                <span className="card-category">{card.category}</span>
+                <h3 className="card-title">{campaign.title}</h3>
+                <span className="card-category">{campaign.category}</span>
               </div>
             </Link>
           ))}
         </div>
       )}
-      {!loading && cards.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <div className="empty-state">
-          <p>No campaigns found. Start the backend and seed the database.</p>
+          <p>No campaigns found.</p>
         </div>
       )}
     </main>
@@ -66,4 +58,3 @@ function HomeContent({ activeFilter, setActiveFilter }) {
 }
 
 export default HomeContent
-

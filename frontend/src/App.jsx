@@ -1,67 +1,50 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
-import CampaignDetail from './components/CampaignDetail'
-import HomePage from './components/Home/HomePage'
-import { STORAGE_THEME_KEY } from './constants/theme'
+import { useAuth } from './context/AuthContext'
+import { STORAGE_THEME_KEY } from './utils/theme'
+import LoginPage from './pages/LoginPage'
+import HomePage from './pages/HomePage'
+import CampaignDetailPage from './pages/CampaignDetailPage'
+import ConnectedAccountsPage from './pages/ConnectedAccountsPage'
+import MySubmissionsPage from './pages/MySubmissionsPage'
+import MyEarningsPage from './pages/MyEarningsPage'
+import WalletPage from './pages/WalletPage'
+import ProfilePage from './pages/ProfilePage'
+import MyCampaignsPage from './pages/MyCampaignsPage'
+import CampaignSubmissionsPage from './pages/CampaignSubmissionsPage'
+
+function ProtectedRoute({ children }) {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return children
+}
 
 function App() {
-  const [profileOpen, setProfileOpen] = useState(false)
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem(STORAGE_THEME_KEY)
     if (stored !== null) return stored === 'dark'
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
-  const profileRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
     localStorage.setItem(STORAGE_THEME_KEY, isDark ? 'dark' : 'light')
   }, [isDark])
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false)
-    }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [])
-
   return (
-    <div className="app">
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <HomePage
-              isDark={isDark}
-              setIsDark={setIsDark}
-              profileOpen={profileOpen}
-              setProfileOpen={setProfileOpen}
-              profileRef={profileRef}
-            />
-          }
-        />
-        <Route
-          path="/campaign/:id"
-          element={
-            <>
-              <header className="header header-minimal">
-                <div className="header-inner">
-                  <Link to="/" className="header-back-link">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 12H5M12 19l-7-7 7-7" />
-                    </svg>
-                    ZuZo
-                  </Link>
-                </div>
-              </header>
-              <CampaignDetail />
-            </>
-          }
-        />
-      </Routes>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<ProtectedRoute><HomePage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/campaign/:id" element={<ProtectedRoute><CampaignDetailPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/accounts" element={<ProtectedRoute><ConnectedAccountsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/submissions" element={<ProtectedRoute><MySubmissionsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/earnings" element={<ProtectedRoute><MyEarningsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/wallet" element={<ProtectedRoute><WalletPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/my-campaigns" element={<ProtectedRoute><MyCampaignsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+      <Route path="/my-campaigns/:campaignId/submissions" element={<ProtectedRoute><CampaignSubmissionsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+    </Routes>
   )
 }
 

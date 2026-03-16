@@ -1,22 +1,28 @@
-import { Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import { clearAuth, getUser } from '../../constants/api'
 
 function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) {
+  const navigate = useNavigate()
+  const user = getUser()
+
+  const handleSignOut = () => {
+    clearAuth()
+    navigate('/login')
+  }
+
   return (
     <header className="navbar">
       <div className="navbar-inner">
         <Link to="/" className="navbar-logo" aria-label="Hustle Home">
           <span className="navbar-logo-icon">H</span>
         </Link>
-        <Link to="/" className="org-name navbar-center">
-          Hustle
-        </Link>
+        <Link to="/" className="org-name navbar-center">Hustle</Link>
         <div className="navbar-right">
           <button
             type="button"
             className="theme-toggle"
             onClick={() => setIsDark((d) => !d)}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={isDark ? 'Light mode' : 'Dark mode'}
           >
             {isDark ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -36,32 +42,20 @@ function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) 
               aria-haspopup="true"
               aria-expanded={profileOpen}
             >
-              <span className="profile-avatar">U</span>
-              <span className="profile-label">Profile</span>
+              <span className="profile-avatar">
+                {user?.username?.[0]?.toUpperCase() || 'U'}
+              </span>
+              <span className="profile-label">{user?.username || 'Profile'}</span>
               <svg className="profile-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M2 4l4 4 4-4" />
               </svg>
             </button>
             {profileOpen && (
               <ul className="profile-dropdown">
-                <li>
-                  <button>My Profile</button>
-                </li>
-                <li>
-                  <button>My Earnings</button>
-                </li>
-                <li>
-                  <button>Settings</button>
-                </li>
-                <li>
-                  <button>Preferences</button>
-                </li>
-                <li>
-                  <button>Help & Support</button>
-                </li>
-                <li>
-                  <button>Sign out</button>
-                </li>
+                <li><button onClick={() => navigate('/profile')}>My Profile</button></li>
+                <li><button onClick={() => navigate('/wallet')}>My Wallet</button></li>
+                <li><button onClick={() => navigate('/submissions')}>My Submissions</button></li>
+                <li><button onClick={handleSignOut}>Sign out</button></li>
               </ul>
             )}
           </div>

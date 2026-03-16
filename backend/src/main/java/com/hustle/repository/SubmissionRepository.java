@@ -15,10 +15,14 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     List<Submission> findByUserId(Long userId);
     List<Submission> findByUserIdAndCampaignId(Long userId, Long campaignId);
     List<Submission> findByCampaignId(Long campaignId);
+    List<Submission> findByCampaignIdAndStatus(Long campaignId, SubmissionStatus status);
+
 
     @Query("SELECT s FROM Submission s WHERE s.status = :status AND s.campaign.campaignStatus = :campaignStatus")
     List<Submission> findByStatusAndCampaignStatus(
             @Param("status") SubmissionStatus status,
             @Param("campaignStatus") CampaignStatus campaignStatus
     );
+
+
 }

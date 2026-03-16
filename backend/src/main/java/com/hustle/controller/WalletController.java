@@ -68,4 +68,10 @@ public class WalletController {
                 .orElseThrow(() -> new RuntimeException("User not found"))
                 .getId();
     }
+    @PostMapping("/admin/earnings/{earningsId}/payout")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> processEarningsPayout(@PathVariable Long earningsId) {
+        walletService.processEarningsPayout(earningsId);
+        return ResponseEntity.ok("Payout processed successfully");
+    }
 }
