@@ -54,6 +54,18 @@ public class SubmissionService {
         return submissionRepository.findByCampaignId(campaignId);
     }
 
+    public List<Submission> getAllSubmissions() {
+        return submissionRepository.findAll();
+    }
+
+    @Transactional
+    public void markEligible(Long submissionId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
+        submission.setStatus(SubmissionStatus.ELIGIBLE);
+        submissionRepository.save(submission);
+    }
+
     @Transactional
     public void rejectSubmission(Long submissionId) {
         Submission submission = submissionRepository.findById(submissionId)

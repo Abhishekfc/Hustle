@@ -26,7 +26,7 @@ public class CampaignScheduler {
     private final EarningsRepository earningsRepository;
     private final UserRepository userRepository;
 
-    @Scheduled(fixedRate = 3000000) // every 6 hours 30000 6 * 60 * 60 * 1000
+    @Scheduled(fixedRate = 300000) // every 6 hours 30000 6 * 60 * 60 * 1000
     @Transactional
     public void syncViewsAndProcessCampaigns() {
         log.info("CampaignScheduler: starting sync");

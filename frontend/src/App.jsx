@@ -13,10 +13,23 @@ import WalletPage from './pages/WalletPage'
 import ProfilePage from './pages/ProfilePage'
 import MyCampaignsPage from './pages/MyCampaignsPage'
 import CampaignSubmissionsPage from './pages/CampaignSubmissionsPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminCampaignsPage from './pages/admin/AdminCampaignsPage'
+import AdminSubmissionsPage from './pages/admin/AdminSubmissionsPage'
+import AdminPayoutsPage from './pages/admin/AdminPayoutsPage'
+import AdminWithdrawalsPage from './pages/admin/AdminWithdrawalsPage'
+import AdminUsersPage from './pages/admin/AdminUsersPage'
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
+  return children
+}
+
+function ProtectedAdminRoute({ children }) {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== 'ADMIN') return <Navigate to="/" replace />
   return children
 }
 
@@ -44,6 +57,14 @@ function App() {
       <Route path="/profile" element={<ProtectedRoute><ProfilePage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
       <Route path="/my-campaigns" element={<ProtectedRoute><MyCampaignsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
       <Route path="/my-campaigns/:campaignId/submissions" element={<ProtectedRoute><CampaignSubmissionsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedRoute>} />
+
+      {/* Admin routes */}
+      <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboardPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
+      <Route path="/admin/campaigns" element={<ProtectedAdminRoute><AdminCampaignsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
+      <Route path="/admin/submissions" element={<ProtectedAdminRoute><AdminSubmissionsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
+      <Route path="/admin/payouts" element={<ProtectedAdminRoute><AdminPayoutsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
+      <Route path="/admin/withdrawals" element={<ProtectedAdminRoute><AdminWithdrawalsPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
+      <Route path="/admin/users" element={<ProtectedAdminRoute><AdminUsersPage isDark={isDark} setIsDark={setIsDark} /></ProtectedAdminRoute>} />
     </Routes>
   )
 }

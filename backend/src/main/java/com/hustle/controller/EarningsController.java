@@ -3,6 +3,7 @@ package com.hustle.controller;
 import com.hustle.entity.Earnings;
 import com.hustle.repository.UserRepository;
 import com.hustle.service.EarningsService;
+import com.hustle.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +19,7 @@ import java.util.List;
 public class EarningsController {
 
     private final EarningsService earningsService;
+    private final WalletService walletService;
     private final UserRepository userRepository;
 
     @GetMapping("/me")
@@ -31,6 +33,13 @@ public class EarningsController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Earnings>> getAllEarnings() {
         return ResponseEntity.ok(earningsService.getAllEarnings());
+    }
+
+    @PostMapping("/admin/{id}/payout")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> triggerPayout(@PathVariable Long id) {
+        walletService.processEarningsPayout(id);
+        return ResponseEntity.ok("Payout processed successfully");
     }
 
     private Long getUserId(UserDetails userDetails) {

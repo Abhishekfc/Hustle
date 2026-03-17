@@ -32,6 +32,8 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/campaigns/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/wallet/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/accounts/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/earnings/admin/**").hasRole("ADMIN")

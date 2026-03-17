@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/wallet")
@@ -51,6 +52,12 @@ public class WalletController {
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<Wallet>> getAllWallets() {
+        return ResponseEntity.ok(walletService.getAllWallets());
+    }
+
+    @GetMapping("/admin/withdrawals")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<com.hustle.entity.WithdrawalRequest>> getAllWithdrawals() {
         return ResponseEntity.ok(walletService.getAllWithdrawals());
     }
@@ -59,7 +66,8 @@ public class WalletController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<com.hustle.entity.WithdrawalRequest> updateWithdrawalStatus(
             @PathVariable Long id,
-            @RequestParam WithdrawalStatus status) {
+            @RequestBody Map<String, String> body) {
+        WithdrawalStatus status = WithdrawalStatus.valueOf(body.get("status"));
         return ResponseEntity.ok(walletService.updateWithdrawalStatus(id, status));
     }
 

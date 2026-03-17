@@ -13,4 +13,6 @@ public interface EarningsRepository extends JpaRepository<Earnings, Long> {
     List<Earnings> findByUserId(Long userId);
     List<Earnings> findByCampaignIdAndPayoutStatus(Long campaignId, PayoutStatus status);
     Optional<Earnings> findBySubmissionId(Long submissionId);
+    List<Earnings> findByCampaignId(Long campaignId);
+    List<Earnings> findByPayoutStatus(PayoutStatus status);
 }

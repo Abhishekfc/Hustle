@@ -65,6 +65,9 @@ function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) 
             </button>
             {profileOpen && (
               <ul className="profile-dropdown">
+                {user?.role === 'ADMIN' && (
+                  <li><button onClick={() => navigate('/admin')}>⚙️ Admin Panel</button></li>
+                )}
                 <li><button onClick={() => navigate('/profile')}>My Profile</button></li>
                 <li><button onClick={() => navigate('/wallet')}>My Wallet</button></li>
                 <li><button onClick={() => navigate('/submissions')}>My Submissions</button></li>

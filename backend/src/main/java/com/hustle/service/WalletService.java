@@ -28,6 +28,10 @@ public class WalletService {
     private final UserRepository userRepository;
     private final EarningsRepository earningsRepository;
 
+    public List<Wallet> getAllWallets() {
+        return walletRepository.findAll();
+    }
+
     public Wallet getWalletByUser(Long userId) {
         return walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));

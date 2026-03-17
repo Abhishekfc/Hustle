@@ -55,11 +55,24 @@ public class SubmissionController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/admin/{campaignId}")
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<Submission>> getAllSubmissions() {
+        return ResponseEntity.ok(submissionService.getAllSubmissions());
+    }
+
+    @GetMapping("/admin/campaign/{campaignId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Submission>> getSubmissionsForCampaign(
             @PathVariable Long campaignId) {
         return ResponseEntity.ok(submissionService.getSubmissionsByCampaign(campaignId));
+    }
+
+    @PutMapping("/admin/{id}/eligible")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> markEligible(@PathVariable Long id) {
+        submissionService.markEligible(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/admin/{id}/reject")

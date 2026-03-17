@@ -21,6 +21,12 @@ public class CampaignController {
          return ResponseEntity.ok(campaignService.getActiveCampaigns());
      }
 
+     @GetMapping("/admin/all")
+     @PreAuthorize("hasRole('ADMIN')")
+     public ResponseEntity<List<Campaign>> getAllCampaigns() {
+         return ResponseEntity.ok(campaignService.getAllCampaigns());
+     }
+
      @GetMapping("/{id}")
      public ResponseEntity<Campaign> getCampaignById(@PathVariable Long id){
          return ResponseEntity.ok(campaignService.getCampaignById(id));
