@@ -1,11 +1,17 @@
 package com.hustle.service;
 
+import com.hustle.entity.Campaign;
 import com.hustle.entity.Earnings;
+import com.hustle.entity.Submission;
 import com.hustle.entity.Wallet;
 import com.hustle.entity.WithdrawalRequest;
+import com.hustle.enums.CampaignStatus;
 import com.hustle.enums.PayoutStatus;
+import com.hustle.enums.SubmissionStatus;
 import com.hustle.enums.WithdrawalStatus;
+import com.hustle.repository.CampaignRepository;
 import com.hustle.repository.EarningsRepository;
+import com.hustle.repository.SubmissionRepository;
 import com.hustle.repository.WalletRepository;
 import com.hustle.repository.WithdrawalRequestRepository;
 import com.hustle.repository.UserRepository;
@@ -15,8 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -27,6 +37,8 @@ public class WalletService {
     private final WithdrawalRequestRepository withdrawalRepository;
     private final UserRepository userRepository;
     private final EarningsRepository earningsRepository;
+    private final CampaignRepository campaignRepository;
+    private final SubmissionRepository submissionRepository;
 
     public List<Wallet> getAllWallets() {
         return walletRepository.findAll();
@@ -116,5 +128,93 @@ public class WalletService {
 
         log.info("Paid out earnings {} to user {}: {}",
                 earningsId, earnings.getUser().getId(), earnings.getAmount());
+    }
+
+    @Transactional
+    public int distributeCampaign(Long campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found: " + campaignId));
+        return distributeForCampaign(campaign);
+    }
+
+    @Transactional
+    public int distributeAll() {
+        List<Campaign> endedCampaigns = campaignRepository.findByCampaignStatus(CampaignStatus.ENDED);
+        int count = 0;
+        for (Campaign campaign : endedCampaigns) {
+            count += distributeForCampaign(campaign);
+        }
+        log.info("distributeAll: processed {} submissions total", count);
+        return count;
+    }
+
+    private int distributeForCampaign(Campaign campaign) {
+        List<Submission> eligible = submissionRepository
+                .findByCampaignIdAndStatus(campaign.getId(), SubmissionStatus.ELIGIBLE);
+        int count = 0;
+        // Cache wallets by userId to avoid duplicate-insert on same user with multiple submissions
+        Map<Long, Wallet> walletCache = new HashMap<>();
+
+        for (Submission submission : eligible) {
+            Optional<Earnings> existing = earningsRepository.findBySubmissionId(submission.getId());
+
+            if (existing.isPresent()) {
+                PayoutStatus s = existing.get().getPayoutStatus();
+                if (s == PayoutStatus.PAID || s == PayoutStatus.VOIDED) continue;
+            }
+
+            long views = submission.getViewCount();
+            BigDecimal amount = BigDecimal.valueOf(views)
+                    .divide(BigDecimal.valueOf(1_000_000), 10, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(campaign.getRatePerMillion()));
+
+            Earnings earnings;
+            if (existing.isPresent()) {
+                earnings = existing.get();
+                earnings.setViewsAtPayout(views);
+                earnings.setAmount(amount);
+            } else {
+                earnings = new Earnings();
+                earnings.setUser(submission.getUser());
+                earnings.setCampaign(campaign);
+                earnings.setSubmission(submission);
+                earnings.setViewsAtPayout(views);
+                earnings.setAmount(amount);
+                earnings.setPayoutStatus(PayoutStatus.PENDING);
+            }
+            earningsRepository.save(earnings);
+
+            Long userId = submission.getUser().getId();
+            Wallet wallet = walletCache.computeIfAbsent(userId, uid ->
+                walletRepository.findByUserId(uid).orElseGet(() -> {
+                    Wallet w = new Wallet();
+                    w.setUser(submission.getUser());
+                    w.setBalance(BigDecimal.ZERO);
+                    w.setTotalEarned(BigDecimal.ZERO);
+                    w.setTotalWithdrawn(BigDecimal.ZERO);
+                    w.setTotalViewsEligible(0L);
+                    return walletRepository.save(w);
+                })
+            );
+
+            wallet.setBalance(wallet.getBalance().add(amount));
+            wallet.setTotalEarned(wallet.getTotalEarned().add(amount));
+            wallet.setTotalViewsEligible(wallet.getTotalViewsEligible() + views);
+            walletRepository.save(wallet);
+
+            earnings.setPayoutStatus(PayoutStatus.PAID);
+            earnings.setPaidAt(LocalDateTime.now());
+            earningsRepository.save(earnings);
+
+            count++;
+            log.info("distribute campaign {}: paid user {} submission {} amount {}",
+                    campaign.getId(), submission.getUser().getId(), submission.getId(), amount);
+        }
+
+        // Mark campaign as distributed so users with no earnings also see "Paid Out"
+        campaign.setDistributed(true);
+        campaignRepository.save(campaign);
+
+        return count;
     }
 }

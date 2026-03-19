@@ -25,5 +25,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
             @Param("campaignStatus") CampaignStatus campaignStatus
     );
 
+    @Query("SELECT COALESCE(SUM(s.viewCount), 0) FROM Submission s WHERE s.user.id = :userId")
+    Long sumViewCountByUserId(@Param("userId") Long userId);
+
+    boolean existsByUserIdAndCampaignId(Long userId, Long campaignId);
+    boolean existsByVideoUrl(String videoUrl);
+
 
 }

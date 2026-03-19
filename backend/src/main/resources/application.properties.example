@@ -1,11 +1,15 @@
 spring.datasource.url=jdbc:postgresql://localhost:5432/hustle
 spring.datasource.username=postgres
-spring.datasource.password=abhishek6280
+spring.datasource.password=your_db_password
 
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 
 server.port=5000
 
-jwt.secret=48659752984621578965231456789456
+jwt.secret=your_jwt_secret_min_32_chars
 jwt.expiration=86400000
+
+hustle.youtube.api-key=your_youtube_api_key
+hustle.youtube.daily-quota-limit=8000
+hustle.youtube.manual-refresh-only=false

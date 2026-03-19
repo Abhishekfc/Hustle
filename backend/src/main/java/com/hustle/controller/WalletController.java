@@ -82,4 +82,18 @@ public class WalletController {
         walletService.processEarningsPayout(earningsId);
         return ResponseEntity.ok("Payout processed successfully");
     }
+
+    @PostMapping("/admin/distribute-all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> distributeAll() {
+        int count = walletService.distributeAll();
+        return ResponseEntity.ok("Distributed earnings for " + count + " submissions");
+    }
+
+    @PostMapping("/admin/distribute/{campaignId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> distributeCampaign(@PathVariable Long campaignId) {
+        int count = walletService.distributeCampaign(campaignId);
+        return ResponseEntity.ok("Distributed earnings for " + count + " submissions");
+    }
 }

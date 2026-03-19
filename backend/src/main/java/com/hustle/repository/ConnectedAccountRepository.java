@@ -10,4 +10,5 @@ import java.util.List;
 public interface ConnectedAccountRepository extends JpaRepository<ConnectedAccount, Long> {
     List<ConnectedAccount> findByUserId(Long userId);
     long countByUserId(Long userId);
+    boolean existsByUserIdAndPlatformAndProfileUrl(Long userId, com.hustle.enums.Platform platform, String profileUrl);
 }

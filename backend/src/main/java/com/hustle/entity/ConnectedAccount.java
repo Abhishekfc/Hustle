@@ -28,7 +28,7 @@ public class ConnectedAccount {
     @Column(nullable = false)
     private Platform platform;
 
-    @Column(nullable = false, length = 100)
+    @Column(length = 100)
     private String handle;
 
     @Column(nullable = false, length = 500)
@@ -42,6 +42,8 @@ public class ConnectedAccount {
     private VerificationStatus verificationStatus = VerificationStatus.PENDING ;
 
     private LocalDateTime verifiedAt;
+
+    private LocalDateTime verificationCodeGeneratedAt;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime connectedAt = LocalDateTime.now();

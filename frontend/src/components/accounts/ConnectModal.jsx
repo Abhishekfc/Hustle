@@ -5,7 +5,6 @@ const PLATFORMS = ['YOUTUBE', 'TIKTOK', 'INSTAGRAM', 'X']
 
 function ConnectModal({ onClose, onSuccess }) {
   const [platform, setPlatform] = useState('YOUTUBE')
-  const [handle, setHandle] = useState('')
   const [profileUrl, setProfileUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -16,7 +15,7 @@ function ConnectModal({ onClose, onSuccess }) {
     setLoading(true)
     setError('')
     try {
-      const res = await connectAccount({ platform, handle: handle.trim(), profileUrl: profileUrl.trim() })
+      const res = await connectAccount({ platform, profileUrl: profileUrl.trim() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed to connect')
       setResult(data)
@@ -53,12 +52,8 @@ function ConnectModal({ onClose, onSuccess }) {
               </select>
             </div>
             <div className="modal-input-group">
-              <label>Handle</label>
-              <input type="text" placeholder="@yourchannel" value={handle} onChange={(e) => setHandle(e.target.value)} required autoFocus />
-            </div>
-            <div className="modal-input-group">
-              <label>Profile URL (optional)</label>
-              <input type="url" placeholder="https://youtube.com/@yourchannel" value={profileUrl} onChange={(e) => setProfileUrl(e.target.value)} />
+              <label>Profile URL</label>
+              <input type="url" placeholder="https://youtube.com/@yourchannel" value={profileUrl} onChange={(e) => setProfileUrl(e.target.value)} required autoFocus />
             </div>
             <button type="submit" className="modal-submit-btn" disabled={loading}>
               {loading ? 'Connecting…' : 'Connect Account'}

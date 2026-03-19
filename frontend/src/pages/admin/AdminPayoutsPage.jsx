@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from './AdminLayout'
-import { getAllEarnings, triggerPayout } from '../../api/adminApi'
+import { getAllEarnings, triggerPayout, distributeAll } from '../../api/adminApi'
 
 const statusMeta = {
   PENDING:    { bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24', label: '🟡 PENDING' },
@@ -56,14 +56,29 @@ function AdminPayoutsPage({ isDark, setIsDark }) {
     }
   }
 
+  const handleDistributeAll = async () => {
+    setBulkProgress({ done: 0, total: '…' })
+    setError('')
+    try {
+      const res = await distributeAll()
+      if (!res.ok) {
+        const text = await res.text()
+        setError(`Distribute failed (${res.status}): ${text}`)
+      }
+    } catch (e) {
+      setError(`Distribute error: ${e.message}`)
+    } finally {
+      setBulkProgress(null)
+      load()
+    }
+  }
+
   const handlePayAllPending = async () => {
     const pending = earnings.filter(e => e.payoutStatus === 'PENDING')
     if (pending.length === 0) return
     setBulkProgress({ done: 0, total: pending.length })
     for (let i = 0; i < pending.length; i++) {
-      try {
-        await triggerPayout(pending[i].id)
-      } catch {}
+      try { await triggerPayout(pending[i].id) } catch {}
       setBulkProgress({ done: i + 1, total: pending.length })
     }
     setBulkProgress(null)
@@ -87,18 +102,32 @@ function AdminPayoutsPage({ isDark, setIsDark }) {
             Manage earnings payouts for creators
           </p>
         </div>
-        <button
-          onClick={handlePayAllPending}
-          disabled={!!bulkProgress || earnings.filter(e => e.payoutStatus === 'PENDING').length === 0}
-          style={{
-            padding: '9px 20px',
-            background: bulkProgress ? 'rgba(55,186,140,0.4)' : 'linear-gradient(135deg, #37ba8c, #2fa97f)',
-            color: '#fff', border: 'none', borderRadius: '8px',
-            fontWeight: 700, fontSize: '0.875rem', cursor: bulkProgress ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          {bulkProgress ? `Paying ${bulkProgress.done}/${bulkProgress.total}…` : '⚡ Pay All Pending'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={handleDistributeAll}
+            disabled={!!bulkProgress}
+            style={{
+              padding: '9px 20px',
+              background: bulkProgress ? 'rgba(55,186,140,0.4)' : 'linear-gradient(135deg, #37ba8c, #2fa97f)',
+              color: '#fff', border: 'none', borderRadius: '8px',
+              fontWeight: 700, fontSize: '0.875rem', cursor: bulkProgress ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            {bulkProgress ? `Distributing…` : '🚀 Distribute All'}
+          </button>
+          <button
+            onClick={handlePayAllPending}
+            disabled={!!bulkProgress || earnings.filter(e => e.payoutStatus === 'PENDING').length === 0}
+            style={{
+              padding: '9px 20px',
+              background: 'var(--bg-card)', border: '1px solid var(--border-filter)',
+              color: 'var(--text-primary)', borderRadius: '8px',
+              fontWeight: 600, fontSize: '0.875rem', cursor: bulkProgress ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            {bulkProgress ? `Paying ${bulkProgress.done}/${bulkProgress.total}…` : '⚡ Pay All Pending'}
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}

@@ -44,6 +44,8 @@ public class CampaignService {
         existing.setRatePerMillion(updated.getRatePerMillion());
         existing.setCampaignStatus(updated.getCampaignStatus());
         existing.setEndsAt(updated.getEndsAt());
+        existing.getPlatforms().clear();
+        existing.getPlatforms().addAll(updated.getPlatforms());
         return campaignRepository.save(existing);
     }
 

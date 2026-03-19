@@ -10,7 +10,7 @@ function AccountCard({ account, onVerify, onDelete }) {
           {PLATFORM_ICONS[account.platform] || account.platform?.slice(0,2)}
         </div>
         <div className="account-card-info">
-          <div className="account-card-handle">{account.handle}</div>
+          <div className="account-card-handle">{account.handle || account.profileUrl}</div>
           <div className="account-card-platform">{account.platform}</div>
         </div>
         <StatusBadge status={account.verificationStatus} />

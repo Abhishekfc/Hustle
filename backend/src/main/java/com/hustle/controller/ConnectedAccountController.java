@@ -39,6 +39,11 @@ public class ConnectedAccountController {
         return ResponseEntity.ok(accountService.verifyAccount(id));
     }
 
+    @PostMapping("/{id}/regenerate-code")
+    public ResponseEntity<ConnectedAccount> regenerateCode(@PathVariable Long id) {
+        return ResponseEntity.ok(accountService.regenerateCode(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAccount(@PathVariable Long id) {
         accountService.deleteAccount(id);

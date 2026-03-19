@@ -2,14 +2,22 @@ import { useRef, useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import Navbar from '../../components/layout/Navbar'
+import {
+  LayoutDashboard,
+  Megaphone,
+  Film,
+  Wallet,
+  CreditCard,
+  Users,
+} from 'lucide-react'
 
 const adminNavItems = [
-  { path: '/admin', label: 'Dashboard', icon: '📊', exact: true },
-  { path: '/admin/campaigns', label: 'Campaigns', icon: '📢' },
-  { path: '/admin/submissions', label: 'Submissions', icon: '🎬' },
-  { path: '/admin/payouts', label: 'Payouts', icon: '💰' },
-  { path: '/admin/withdrawals', label: 'Withdrawals', icon: '💳' },
-  { path: '/admin/users', label: 'Users', icon: '👥' },
+  { path: '/admin',              label: 'Dashboard',   Icon: LayoutDashboard, exact: true },
+  { path: '/admin/campaigns',    label: 'Campaigns',   Icon: Megaphone },
+  { path: '/admin/submissions',  label: 'Submissions', Icon: Film },
+  { path: '/admin/payouts',      label: 'Payouts',     Icon: Wallet },
+  { path: '/admin/withdrawals',  label: 'Withdrawals', Icon: CreditCard },
+  { path: '/admin/users',        label: 'Users',       Icon: Users },
 ]
 
 function AdminLayout({ children, isDark, setIsDark }) {
@@ -21,10 +29,8 @@ function AdminLayout({ children, isDark, setIsDark }) {
   if (!user) return <Navigate to="/login" replace />
   if (user.role !== 'ADMIN') return <Navigate to="/" replace />
 
-  const isActive = (item) => {
-    if (item.exact) return location.pathname === item.path
-    return location.pathname.startsWith(item.path)
-  }
+  const isActive = (item) =>
+    item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-page)' }}>
@@ -37,7 +43,7 @@ function AdminLayout({ children, isDark, setIsDark }) {
       />
 
       <div style={{ display: 'flex', paddingTop: '64px' }}>
-        {/* Admin Sidebar */}
+        {/* ── Admin Sidebar ── */}
         <aside style={{
           position: 'fixed',
           top: '64px',
@@ -46,18 +52,21 @@ function AdminLayout({ children, isDark, setIsDark }) {
           height: 'calc(100vh - 64px)',
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--border-subtle)',
-          padding: '1.5rem 0.75rem',
+          padding: '1.25rem 0.75rem 1.5rem',
           overflowY: 'auto',
           zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.5rem',
         }}>
+          {/* Section label */}
           <div style={{
-            fontSize: '0.65rem',
+            fontSize: '0.62rem',
             fontWeight: 700,
             textTransform: 'uppercase',
-            letterSpacing: '0.1em',
+            letterSpacing: '0.12em',
             color: 'var(--text-muted)',
-            padding: '0 0.75rem',
-            marginBottom: '0.75rem',
+            padding: '0 0.5rem',
           }}>
             Admin Panel
           </div>
@@ -72,24 +81,20 @@ function AdminLayout({ children, isDark, setIsDark }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.6rem',
+                    gap: '0.65rem',
                     padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     textDecoration: 'none',
-                    fontSize: '0.875rem',
-                    fontWeight: active ? 700 : 500,
+                    fontSize: '0.85rem',
+                    fontWeight: active ? 600 : 500,
                     color: active ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
                     background: active ? 'var(--sidebar-active-bg)' : 'transparent',
                     transition: 'all 0.15s ease',
                   }}
-                  onMouseEnter={e => {
-                    if (!active) e.currentTarget.style.background = 'var(--hover-bg)'
-                  }}
-                  onMouseLeave={e => {
-                    if (!active) e.currentTarget.style.background = 'transparent'
-                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--hover-bg)' }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
                 >
-                  <span style={{ fontSize: '1rem', lineHeight: 1 }}>{item.icon}</span>
+                  <item.Icon size={16} strokeWidth={active ? 2.5 : 2} />
                   {item.label}
                 </Link>
               )
@@ -97,13 +102,14 @@ function AdminLayout({ children, isDark, setIsDark }) {
           </nav>
         </aside>
 
-        {/* Main Content */}
+        {/* ── Main Content ── */}
         <main style={{
           marginLeft: '220px',
           flex: 1,
-          padding: '2rem',
+          padding: '2rem 2.25rem',
           minHeight: 'calc(100vh - 64px)',
           maxWidth: 'calc(100vw - 220px)',
+          boxSizing: 'border-box',
         }}>
           {children}
         </main>

@@ -5,6 +5,7 @@ import com.hustle.enums.CampaignStatus;
 import com.hustle.enums.PayoutStatus;
 import com.hustle.enums.SubmissionStatus;
 import com.hustle.repository.*;
+import com.hustle.service.ViewFetchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,40 +26,39 @@ public class CampaignScheduler {
     private final SubmissionRepository submissionRepository;
     private final EarningsRepository earningsRepository;
     private final UserRepository userRepository;
+    private final ViewFetchService viewFetchService;
 
-    @Scheduled(fixedRate = 300000) // every 6 hours 30000 6 * 60 * 60 * 1000
+    @Scheduled(fixedRate = 21_600_000) // every 6 hours
     @Transactional
     public void syncViewsAndProcessCampaigns() {
+        if (viewFetchService.isManualRefreshOnly()) {
+            log.info("CampaignScheduler: manual-refresh-only mode — skipping automatic sync");
+            return;
+        }
+
         log.info("CampaignScheduler: starting sync");
 
         List<Campaign> activeCampaigns = campaignRepository.findByCampaignStatus(CampaignStatus.ACTIVE);
 
         for (Campaign campaign : activeCampaigns) {
-
-            // 1. Get all eligible submissions for this campaign
             List<Submission> eligibleSubmissions = submissionRepository
                     .findByCampaignIdAndStatus(campaign.getId(), SubmissionStatus.ELIGIBLE);
 
-            // 2. Sync views (placeholder until real API integration)
+            // 1. Sync views from platform API
             for (Submission submission : eligibleSubmissions) {
-                // TODO: replace with real platform API call
-                // long latestViews = socialApiService.getViews(submission.getVideoUrl());
-                long latestViews = submission.getViewCount(); // no-op until API integrated
-
-                long delta = latestViews - submission.getViewCount();
-                if (delta > 0) {
-                    submission.setViewCount(latestViews);
-                    submissionRepository.save(submission);
-
-                    User user = submission.getUser();
-                    user.setTotalViewsGenerated(user.getTotalViewsGenerated() + delta);
-                    userRepository.save(user);
-
-                    log.info("Submission {}: +{} views", submission.getId(), delta);
+                try {
+                    long latestViews = viewFetchService.fetchViews(submission);
+                    if (latestViews == 0L && submission.getViewCount() == 0L) {
+                        // No data yet — skip to avoid resetting anything
+                        continue;
+                    }
+                    applyViewUpdate(submission, latestViews);
+                } catch (Exception e) {
+                    log.warn("Error syncing submission {}: {}", submission.getId(), e.getMessage());
                 }
             }
 
-            // 3. Recalculate budgetUsed based on current view counts
+            // 2. Recalculate budgetUsed
             BigDecimal totalBudgetUsed = BigDecimal.ZERO;
             for (Submission submission : eligibleSubmissions) {
                 BigDecimal cost = BigDecimal.valueOf(submission.getViewCount())
@@ -69,7 +69,7 @@ public class CampaignScheduler {
             campaign.setBudgetUsed(totalBudgetUsed);
             campaignRepository.save(campaign);
 
-            // 4. Check if campaign should end
+            // 3. End campaign if expired or budget exhausted
             boolean expired = campaign.getEndsAt() != null
                     && LocalDateTime.now().isAfter(campaign.getEndsAt());
             boolean budgetExhausted = totalBudgetUsed.compareTo(campaign.getTotalBudget()) >= 0;
@@ -84,20 +84,39 @@ public class CampaignScheduler {
         log.info("CampaignScheduler: sync complete");
     }
 
+    /**
+     * Called by the scheduler and by the manual sync endpoint.
+     * Applies a new view count to a submission and updates user totals.
+     */
+    @Transactional
+    public void applyViewUpdate(Submission submission, long latestViews) {
+        long delta = latestViews - submission.getViewCount();
+        if (delta == 0) return;
+
+        submission.setViewCount(latestViews);
+        submission.setLastSyncedAt(LocalDateTime.now());
+        submissionRepository.save(submission);
+
+        User user = submission.getUser();
+        long newTotal = Math.max(0, user.getTotalViewsGenerated() + delta);
+        user.setTotalViewsGenerated(newTotal);
+        userRepository.save(user);
+
+        log.info("Submission {}: viewCount {} → {} (delta {})",
+                submission.getId(), latestViews - delta, latestViews, delta);
+    }
+
     private void endCampaign(Campaign campaign, List<Submission> eligibleSubmissions) {
         campaign.setCampaignStatus(CampaignStatus.ENDED);
         campaignRepository.save(campaign);
 
         for (Submission submission : eligibleSubmissions) {
             long views = submission.getViewCount();
-            if (views <= 0) continue;
 
             BigDecimal earnings = BigDecimal.valueOf(views)
                     .divide(BigDecimal.valueOf(1_000_000), 10, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(campaign.getRatePerMillion()));
 
-            // Create PENDING earnings — wallet NOT touched
-            // Admin manually pays out via POST /api/wallet/admin/earnings/{id}/payout
             Earnings earningsRecord = new Earnings();
             earningsRecord.setUser(submission.getUser());
             earningsRecord.setCampaign(campaign);
@@ -107,15 +126,11 @@ public class CampaignScheduler {
             earningsRecord.setPayoutStatus(PayoutStatus.PENDING);
             earningsRepository.save(earningsRecord);
 
-            // Show creator that campaign ended and payment is processing
-            submission.setEarningsVisible(true);
-            submissionRepository.save(submission);
-
             log.info("PENDING earnings created — user: {}, submission: {}, amount: {}",
                     submission.getUser().getId(), submission.getId(), earnings);
         }
 
-        log.info("Campaign {} ended. {} earnings records pending admin payout.",
+        log.info("Campaign {} ended. {} earnings records created.",
                 campaign.getId(), eligibleSubmissions.size());
     }
 }

@@ -7,10 +7,16 @@ build/
 .next/
 out/
 
-# Environment
+# Backend — secrets & compiled output
+backend/src/main/resources/application.properties
+backend/target/
+
+# Environment / secrets
 .env
 .env.local
 .env.*.local
+frontend/.env
+frontend/.env.local
 
 # Logs
 logs/

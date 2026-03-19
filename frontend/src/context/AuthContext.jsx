@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login as loginApi, register as registerApi } from '../api/authApi'
+import { login as loginApi, register as registerApi, googleLogin as googleLoginApi } from '../api/authApi'
 
 const AuthContext = createContext(null)
 
@@ -31,6 +31,16 @@ export function AuthProvider({ children }) {
     navigate('/')
   }
 
+  const googleLogin = async (email, name) => {
+    const res = await googleLoginApi(email, name)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Google login failed')
+    localStorage.setItem('hustle_token', data.token)
+    localStorage.setItem('hustle_user', JSON.stringify({ username: data.username, role: data.role }))
+    setUser({ username: data.username, role: data.role })
+    navigate('/')
+  }
+
   const logout = () => {
     localStorage.removeItem('hustle_token')
     localStorage.removeItem('hustle_user')
@@ -39,7 +49,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAdmin: user?.role === 'ADMIN' }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, isAdmin: user?.role === 'ADMIN' }}>
       {children}
     </AuthContext.Provider>
   )

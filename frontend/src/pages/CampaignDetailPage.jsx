@@ -464,7 +464,7 @@ function CampaignDetailPage({ isDark, setIsDark }) {
                           background: 'rgba(16,185,129,0.1)', color: 'var(--green-400)',
                           border: '1px solid rgba(16,185,129,0.2)', fontWeight: 600
                         }}>
-                          {acc.platform} · {acc.handle}
+                          {acc.platform} · {acc.handle || acc.profileUrl}
                         </span>
                       ))}
                     </div>

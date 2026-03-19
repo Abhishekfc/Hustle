@@ -38,8 +38,7 @@ public class Submission {
     @Column(nullable = false)
     private Long viewCount = 0L;
 
-    @Column(nullable = false)
-    private Boolean earningsVisible = false;
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -2,6 +2,7 @@ package com.hustle.entity;
 
 import com.hustle.enums.CampaignStatus;
 import com.hustle.enums.Category;
+import com.hustle.enums.Platform;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,6 +10,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -55,5 +58,14 @@ public class Campaign {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(nullable = false)
+    private boolean distributed = false;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "campaign_allowed_platforms", joinColumns = @JoinColumn(name = "campaign_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "platform")
+    private List<Platform> platforms = new ArrayList<>();
 
 }

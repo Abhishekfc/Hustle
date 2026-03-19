@@ -15,28 +15,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 404 — resource not found
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
         String message = ex.getMessage();
 
-        // Detect "not found" errors
         if (message != null && message.toLowerCase().contains("not found")) {
             return buildResponse(HttpStatus.NOT_FOUND, message);
         }
 
-        // Detect business logic violations
-        if (message != null && (
-                message.contains("Insufficient balance") ||
-                        message.contains("already paid out") ||
-                        message.contains("Cannot pay voided") ||
-                        message.contains("Maximum") ||
-                        message.contains("already submitted")
-        )) {
+        // All other RuntimeExceptions are business logic errors — return as 400 with the actual message
+        if (message != null && !message.isBlank()) {
             return buildResponse(HttpStatus.BAD_REQUEST, message);
         }
 
-        // Generic 500
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
     }
 

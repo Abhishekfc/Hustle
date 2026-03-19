@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/submissions")
@@ -80,6 +81,15 @@ public class SubmissionController {
     public ResponseEntity<Void> rejectSubmission(@PathVariable Long id) {
         submissionService.rejectSubmission(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Test endpoint: manually set view count to simulate platform API ──
+    @PutMapping("/admin/{id}/views")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Submission> updateViews(
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> body) {
+        return ResponseEntity.ok(submissionService.updateViewCount(id, body.get("viewCount")));
     }
 
     private Long getUserId(UserDetails userDetails) {

@@ -1,13 +1,10 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { LayoutGrid, Sun, Moon, Settings } from 'lucide-react'
 
 function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-
-  const handleSignOut = () => {
-    logout()
-  }
 
   return (
     <header className="navbar">
@@ -17,37 +14,31 @@ function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) 
         </Link>
         <Link to="/" className="org-name navbar-center">Hustle</Link>
         <div className="navbar-right">
+          {/* My Campaigns shortcut */}
           <button
             type="button"
             className="theme-toggle"
             style={{ display: 'flex', alignItems: 'center', gap: '6px', width: 'auto', padding: '0 12px', fontSize: '0.78rem', fontWeight: 600 }}
             onClick={() => navigate('/my-campaigns')}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
+            <LayoutGrid size={14} strokeWidth={2} />
             My Campaigns
           </button>
+
+          {/* Theme toggle */}
           <button
             type="button"
             className="theme-toggle"
             onClick={() => setIsDark((d) => !d)}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {isDark ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5" />
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            )}
+            {isDark
+              ? <Sun size={18} strokeWidth={1.75} />
+              : <Moon size={18} strokeWidth={1.75} />
+            }
           </button>
+
+          {/* Profile dropdown */}
           <div className={`profile-wrapper ${profileOpen ? 'open' : ''}`} ref={profileRef}>
             <button
               className="profile-trigger"
@@ -66,13 +57,18 @@ function Navbar({ isDark, setIsDark, profileOpen, setProfileOpen, profileRef }) 
             {profileOpen && (
               <ul className="profile-dropdown">
                 {user?.role === 'ADMIN' && (
-                  <li><button onClick={() => navigate('/admin')}>⚙️ Admin Panel</button></li>
+                  <li>
+                    <button onClick={() => navigate('/admin')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Settings size={14} strokeWidth={2} style={{ opacity: 0.7 }} />
+                      Admin Panel
+                    </button>
+                  </li>
                 )}
                 <li><button onClick={() => navigate('/profile')}>My Profile</button></li>
                 <li><button onClick={() => navigate('/wallet')}>My Wallet</button></li>
                 <li><button onClick={() => navigate('/submissions')}>My Submissions</button></li>
                 <li><button onClick={() => navigate('/accounts')}>Connected Accounts</button></li>
-                <li><button onClick={handleSignOut}>Sign out</button></li>
+                <li><button onClick={logout} style={{ color: '#f87171' }}>Sign out</button></li>
               </ul>
             )}
           </div>
