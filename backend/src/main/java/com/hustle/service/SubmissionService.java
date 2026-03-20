@@ -69,9 +69,6 @@ public class SubmissionService {
         // Video must belong to the connected account's channel
         verifyChannelOwnership(account, videoUrl);
 
-        if (submissionRepository.existsByUserIdAndCampaignId(userId, campaignId)) {
-            throw new RuntimeException("You have already submitted a video for this campaign.");
-        }
         if (submissionRepository.existsByVideoUrl(videoUrl)) {
             throw new RuntimeException("This video has already been submitted.");
         }
@@ -125,19 +122,26 @@ public class SubmissionService {
             throw new RuntimeException("Could not verify the video. Make sure the video is public and the URL is correct.");
         }
 
-        String accountChannelId = getAccountChannelId(account.getProfileUrl());
-        if (accountChannelId == null) {
-            log.warn("Could not resolve channel ID for account {} — skipping ownership check", account.getId());
-            return;
+        // Check against ALL the user's verified YouTube accounts (not just the auto-selected one)
+        List<ConnectedAccount> allYouTubeAccounts = accountRepository
+                .findByUserId(account.getUser().getId())
+                .stream()
+                .filter(a -> a.getPlatform() == Platform.YOUTUBE
+                        && a.getVerificationStatus() == VerificationStatus.VERIFIED)
+                .toList();
+
+        for (ConnectedAccount ytAccount : allYouTubeAccounts) {
+            String accountChannelId = getAccountChannelId(ytAccount.getProfileUrl());
+            if (accountChannelId != null && accountChannelId.equals(videoChannelId)) {
+                log.info("YouTube ownership verified — video channel {} matches account {}",
+                        videoChannelId, ytAccount.getId());
+                return;
+            }
         }
 
-        if (!videoChannelId.equals(accountChannelId)) {
-            throw new RuntimeException(
-                "This video does not belong to your connected YouTube channel. " +
-                "You can only submit videos from your own channel.");
-        }
-
-        log.info("YouTube channel ownership verified for account {}", account.getId());
+        throw new RuntimeException(
+            "This video does not belong to any of your connected YouTube channels. " +
+            "You can only submit videos from your own channel.");
     }
 
     /** Returns the channelId of the YouTube video's uploader. */

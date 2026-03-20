@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getCampaignById, getLeaderboard } from '../api/campaignApi'
-import { api } from '../api/client'
+import { Link, useParams } from 'react-router-dom'
+import { getCampaignById, getLeaderboard, registerForCampaign, checkIsRegistered } from '../api/campaignApi'
+import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/shared/StatusBadge'
 import Badge from '../components/shared/Badge'
 import Navbar from '../components/layout/Navbar'
@@ -59,58 +59,190 @@ const PlatformStack = ({ platforms }) => {
 }
 
 /* ── Leaderboard Component ────────────────────────────────────── */
+const RANK_CONFIG = {
+  1: { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', label: '🥇', shadow: '0 0 20px rgba(245,158,11,0.15)' },
+  2: { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', border: 'rgba(148,163,184,0.25)', label: '🥈', shadow: '0 0 20px rgba(148,163,184,0.1)' },
+  3: { color: '#cd7c3a', bg: 'rgba(205,124,58,0.1)',  border: 'rgba(205,124,58,0.25)',  label: '🥉', shadow: '0 0 20px rgba(205,124,58,0.1)'  },
+}
+
+function LeaderboardPodium({ row }) {
+  const cfg = RANK_CONFIG[row.rank]
+  const initials = row.username?.slice(0, 2).toUpperCase() || '??'
+  return (
+    <div style={{
+      background: cfg.bg,
+      border: `1px solid ${cfg.border}`,
+      borderRadius: '16px',
+      padding: '1.25rem 1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '0.6rem',
+      boxShadow: cfg.shadow,
+      flex: 1,
+      minWidth: 0,
+      position: 'relative',
+    }}>
+      <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', fontSize: '1.6rem', lineHeight: 1 }}>
+        {cfg.label}
+      </div>
+      <div style={{
+        width: 52, height: 52, borderRadius: '50%',
+        background: `linear-gradient(135deg, ${cfg.color}30, ${cfg.color}15)`,
+        border: `2px solid ${cfg.color}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '1rem', fontWeight: 800, color: cfg.color,
+        marginTop: '0.5rem',
+      }}>
+        {initials}
+      </div>
+      <div style={{ textAlign: 'center', minWidth: 0, width: '100%' }}>
+        <div style={{
+          fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {row.username}
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+          {row.submissionCount} video{row.submissionCount !== 1 ? 's' : ''}
+        </div>
+      </div>
+      <div style={{
+        fontWeight: 800, fontSize: '1.05rem', color: cfg.color,
+        letterSpacing: '-0.02em',
+      }}>
+        {formatCurrency(row.totalEarned)}
+      </div>
+    </div>
+  )
+}
+
 function CampaignLeaderboard({ campaignId }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     getLeaderboard(campaignId)
       .then(res => { if (!res.ok) throw new Error(); return res.json() })
-      .then(data => setRows(Array.isArray(data) ? data.slice(0, 10) : []))
-      .catch(() => setFailed(true))
+      .then(data => setRows(Array.isArray(data) ? data : []))
+      .catch(() => setRows([]))
       .finally(() => setLoading(false))
   }, [campaignId])
 
-  const medals = { 1: '🥇', 2: '🥈', 3: '🥉' }
+  const podium = rows.slice(0, 3)
+  const rest   = rows.slice(3)
 
   return (
     <div className="detail-section">
-      <h2 className="detail-section-title">Creator Leaderboard</h2>
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-filter)', borderRadius: '16px', overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading leaderboard…</div>
-        ) : failed || rows.length === 0 ? (
-          <div style={{ padding: '2.5rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎯</div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Be the first to submit and appear on the leaderboard!</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              {failed ? 'Leaderboard coming soon.' : 'Register and submit your video to appear here.'}
-            </div>
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-filter)' }}>
-                {['Rank', 'Creator', 'Videos', 'Views', 'Earnings'].map(h => (
-                  <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border-filter)', background: r.rank === 1 ? 'rgba(16,185,129,0.06)' : 'transparent' }}>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '1.1rem' }}>{medals[r.rank] || `#${r.rank}`}</td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{r.username}</td>
-                  <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>{r.videosSubmitted}</td>
-                  <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>{formatViews(r.totalViews)}</td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--green-400)' }}>{formatCurrency(r.totalEarned)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      {/* Section header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: '10px',
+          background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0,
+        }}>🏆</div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Creator Leaderboard
+          </h2>
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            Ranked by estimated earnings from eligible submissions
+          </p>
+        </div>
       </div>
+
+      {loading ? (
+        <div style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border-filter)',
+          borderRadius: '16px', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)',
+        }}>
+          Loading leaderboard…
+        </div>
+      ) : rows.length === 0 ? (
+        <div style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border-filter)',
+          borderRadius: '16px', padding: '3rem', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🎯</div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+            No one's on the board yet
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+            Submit an eligible video to claim the top spot
+          </div>
+        </div>
+      ) : (
+        <div>
+          {/* Podium — top 3 */}
+          {podium.length > 0 && (
+            <div style={{
+              display: 'flex', gap: '0.75rem', marginBottom: '0.75rem',
+              paddingTop: '1.25rem',
+            }}>
+              {podium.map(r => <LeaderboardPodium key={r.rank} row={r} />)}
+            </div>
+          )}
+
+          {/* Rows 4+ */}
+          {rest.length > 0 && (
+            <div style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border-filter)',
+              borderRadius: '14px', overflow: 'hidden',
+            }}>
+              {rest.map((r, i) => (
+                <div key={r.rank} style={{
+                  display: 'flex', alignItems: 'center', gap: '1rem',
+                  padding: '0.85rem 1.1rem',
+                  borderBottom: i < rest.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  transition: 'background 0.15s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  {/* Rank */}
+                  <div style={{
+                    width: 28, textAlign: 'center', fontWeight: 700,
+                    fontSize: '0.82rem', color: 'var(--text-muted)', flexShrink: 0,
+                  }}>
+                    #{r.rank}
+                  </div>
+
+                  {/* Avatar */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.78rem', fontWeight: 800, color: 'var(--green-400)',
+                  }}>
+                    {r.username?.slice(0, 2).toUpperCase()}
+                  </div>
+
+                  {/* Username */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {r.username}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      {r.submissionCount} video{r.submissionCount !== 1 ? 's' : ''} · {formatViews(r.totalViews)} views
+                    </div>
+                  </div>
+
+                  {/* Earnings */}
+                  <div style={{
+                    fontWeight: 700, fontSize: '0.9rem', color: 'var(--green-400)',
+                    flexShrink: 0,
+                  }}>
+                    {formatCurrency(r.totalEarned)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -118,18 +250,15 @@ function CampaignLeaderboard({ campaignId }) {
 /* ── Main Page ────────────────────────────────────────────────── */
 function CampaignDetailPage({ isDark, setIsDark }) {
   const { id } = useParams()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const [campaign, setCampaign] = useState(undefined)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef(null)
 
-  // Submit modal state
-  const [showSubmitModal, setShowSubmitModal] = useState(false)
-  const [submitUrl, setSubmitUrl] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [userAccounts, setUserAccounts] = useState([])
+  // Registration state
+  const [registered, setRegistered] = useState(false)
+  const [registering, setRegistering] = useState(false)
+  const [registerError, setRegisterError] = useState('')
 
   // Load campaign
   useEffect(() => {
@@ -146,62 +275,30 @@ function CampaignDetailPage({ isDark, setIsDark }) {
     return () => { cancelled = true }
   }, [id])
 
-  // Load verified connected accounts
+  // Check registration status (only when logged in)
   useEffect(() => {
-    api('/accounts').then(r => r.json()).then(data => {
-      setUserAccounts(Array.isArray(data) ? data.filter(a => a.verificationStatus === 'VERIFIED') : [])
-    }).catch(() => setUserAccounts([]))
-  }, [])
+    if (!user) return
+    checkIsRegistered(id)
+      .then(res => res?.ok ? res.json() : false)
+      .then(val => setRegistered(val === true))
+      .catch(() => {})
+  }, [id, user])
 
-  // Submit handler — automatically match URL to connected account
-  const handleSubmit = async () => {
-    setSubmitError('')
-    if (!submitUrl.trim()) { setSubmitError('Please enter a video URL'); return }
-
-    // Detect platform from URL
-    const url = submitUrl.toLowerCase()
-    let matchedPlatform = null
-    if (url.includes('youtube.com') || url.includes('youtu.be')) matchedPlatform = 'YOUTUBE'
-    else if (url.includes('tiktok.com')) matchedPlatform = 'TIKTOK'
-    else if (url.includes('instagram.com')) matchedPlatform = 'INSTAGRAM'
-    else if (url.includes('x.com') || url.includes('twitter.com')) matchedPlatform = 'X'
-
-    if (!matchedPlatform) {
-      setSubmitError('Please enter a valid YouTube, TikTok, Instagram, or X video URL')
-      return
-    }
-
-    // Find matching verified account for this platform
-    const matchedAccount = userAccounts.find(a => a.platform === matchedPlatform)
-    if (!matchedAccount) {
-      setSubmitError(
-        `You don't have a verified ${matchedPlatform} account connected. ` +
-        `Go to Connected Accounts to add one.`
-      )
-      return
-    }
-
-    setSubmitting(true)
+  const handleRegister = async () => {
+    setRegistering(true)
+    setRegisterError('')
     try {
-      const res = await api('/submissions', {
-        method: 'POST',
-        body: JSON.stringify({
-          campaignId: parseInt(id),
-          accountId: matchedAccount.id,
-          videoUrl: submitUrl.trim()
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setSubmitError(data.message || 'Submission failed. Please try again.')
+      const res = await registerForCampaign(id)
+      if (!res || !res.ok) {
+        const data = await res?.json().catch(() => ({}))
+        setRegisterError(data?.message || 'Registration failed. Please try again.')
         return
       }
-      setSubmitSuccess(true)
-      setSubmitUrl('')
+      setRegistered(true)
     } catch {
-      setSubmitError('Could not connect to server. Please try again.')
+      setRegisterError('Could not connect to server. Please try again.')
     } finally {
-      setSubmitting(false)
+      setRegistering(false)
     }
   }
 
@@ -245,10 +342,12 @@ function CampaignDetailPage({ isDark, setIsDark }) {
           marginBottom: '2rem', gap: '2rem', flexWrap: 'wrap',
           boxShadow: '0 4px 24px var(--shadow-color)'
         }}>
-          {/* Left side: icon + title + badges + platform icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1, minWidth: 0 }}>
-            <div className="detail-hero-image">
-              <span className="card-letter">{campaign.title?.[0]?.toUpperCase()}</span>
+            <div className="detail-hero-image" style={{ overflow: 'hidden', flexShrink: 0 }}>
+              {campaign.thumbnailUrl
+                ? <img src={campaign.thumbnailUrl} alt={campaign.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                : <span className="card-letter">{campaign.title?.[0]?.toUpperCase()}</span>
+              }
             </div>
             <div className="detail-hero-info">
               <div className="detail-hero-badges">
@@ -259,7 +358,6 @@ function CampaignDetailPage({ isDark, setIsDark }) {
               <h1 className="detail-hero-title" style={{ margin: 0 }}>{campaign.title}</h1>
             </div>
           </div>
-          {/* Right side: rate */}
           <div style={{ textAlign: 'center', flexShrink: 0 }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--green-500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
               Rate per 1M Views
@@ -273,7 +371,7 @@ function CampaignDetailPage({ isDark, setIsDark }) {
           </div>
         </div>
 
-        {/* ── Stats grid (3 items only) ── */}
+        {/* ── Stats grid ── */}
         <div className="detail-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <div className="detail-stat-card">
             <span className="detail-stat-label">Total Budget</span>
@@ -305,202 +403,96 @@ function CampaignDetailPage({ isDark, setIsDark }) {
           </div>
         )}
 
-        {/* ── Submit Video Button or Campaign Status Message ── */}
-        {campaign.campaignStatus === 'ACTIVE' ? (
-          <div style={{ textAlign: 'center', margin: '2.5rem 0' }}>
-            <button
-              onClick={() => setShowSubmitModal(true)}
-              style={{
-                padding: '14px 40px',
-                background: 'linear-gradient(135deg, #37ba8c, #2fa97f)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(55, 186, 140, 0.3)',
-                transition: 'all 0.2s ease',
-                letterSpacing: '0.02em'
-              }}
-              onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'}
-              onMouseLeave={e => e.target.style.transform = 'translateY(0)'}
-            >
-              🎬 Submit Your Video
-            </button>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.6rem' }}>
-              Only verified connected accounts are accepted
-            </p>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', margin: '2.5rem 0' }}>
+        {/* ── Register / Status section ── */}
+        <div style={{ margin: '2.5rem 0' }}>
+          {campaign.campaignStatus === 'ACTIVE' ? (
             <div style={{
-              display: 'inline-block',
-              padding: '12px 28px',
+              background: 'var(--bg-card)', border: '1px solid var(--border-filter)',
+              borderRadius: '16px', padding: '1.75rem 2rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: '1.5rem', flexWrap: 'wrap',
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                  {registered ? 'You\'re registered for this campaign' : 'Join this campaign'}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  {registered
+                    ? 'Go to My Campaigns to submit your videos and track your earnings.'
+                    : 'Register to participate and submit your videos from the My Campaigns page.'}
+                </div>
+                {registerError && (
+                  <div style={{ fontSize: '0.8rem', color: '#f87171', marginTop: '0.5rem' }}>
+                    ⚠️ {registerError}
+                  </div>
+                )}
+              </div>
+
+              {!user ? (
+                <Link to="/login" style={{
+                  padding: '11px 28px', borderRadius: '12px', fontWeight: 700,
+                  fontSize: '0.9rem', textDecoration: 'none', flexShrink: 0,
+                  background: 'linear-gradient(135deg, #37ba8c, #2fa97f)', color: '#fff',
+                  boxShadow: '0 4px 16px rgba(55,186,140,0.25)',
+                }}>
+                  Login to Register
+                </Link>
+              ) : registered ? (
+                <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '11px 20px', borderRadius: '12px',
+                    background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
+                    color: '#34d399', fontWeight: 700, fontSize: '0.9rem',
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                    Registered
+                  </div>
+                  <Link to="/my-campaigns" style={{
+                    padding: '11px 20px', borderRadius: '12px', fontWeight: 700,
+                    fontSize: '0.9rem', textDecoration: 'none', flexShrink: 0,
+                    background: 'linear-gradient(135deg, #37ba8c, #2fa97f)', color: '#fff',
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  }}>
+                    Submit Video →
+                  </Link>
+                </div>
+              ) : (
+                <button
+                  onClick={handleRegister}
+                  disabled={registering}
+                  style={{
+                    padding: '11px 32px', borderRadius: '12px', border: 'none',
+                    background: registering ? 'rgba(55,186,140,0.4)' : 'linear-gradient(135deg, #37ba8c, #2fa97f)',
+                    color: '#fff', fontWeight: 700, fontSize: '0.9rem',
+                    cursor: registering ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit', flexShrink: 0,
+                    boxShadow: registering ? 'none' : '0 4px 16px rgba(55,186,140,0.25)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {registering ? 'Registering…' : '+ Register for Campaign'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center',
+              padding: '1.25rem',
               background: 'var(--bg-card)',
               border: '1px solid var(--border-filter)',
               borderRadius: '12px',
               color: 'var(--text-muted)',
-              fontSize: '0.9rem'
+              fontSize: '0.9rem',
             }}>
               {campaign.campaignStatus === 'ENDED' ? '🏁 This campaign has ended' : '⏳ This campaign hasn\'t started yet'}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── Leaderboard ── */}
         <CampaignLeaderboard campaignId={id} />
       </div>
-
-      {/* ── Submit Video Modal ── */}
-      {showSubmitModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '1rem'
-        }} onClick={(e) => { if (e.target === e.currentTarget) { setShowSubmitModal(false); setSubmitSuccess(false); setSubmitError(''); setSubmitUrl('') }}}>
-          <div style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-filter)',
-            borderRadius: '20px',
-            padding: '2rem',
-            width: '100%',
-            maxWidth: '480px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-          }}>
-            {submitSuccess ? (
-              /* Success state */
-              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem', fontSize: '1.3rem' }}>
-                  Video Submitted!
-                </h3>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                  Your submission has been received. View it in My Campaigns.
-                </p>
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => { setShowSubmitModal(false); setSubmitSuccess(false) }}
-                    style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    Close
-                  </button>
-                  <a href="/my-campaigns" style={{
-                    padding: '10px 20px', borderRadius: '10px', border: 'none',
-                    background: 'linear-gradient(135deg, #37ba8c, #2fa97f)',
-                    color: '#fff', fontWeight: 600, textDecoration: 'none',
-                    display: 'inline-flex', alignItems: 'center'
-                  }}>
-                    View in My Campaigns →
-                  </a>
-                </div>
-              </div>
-            ) : (
-              /* Input state */
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Submit Your Video
-                    </h3>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {campaign?.title}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => { setShowSubmitModal(false); setSubmitError(''); setSubmitUrl('') }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1, padding: '4px' }}
-                  >×</button>
-                </div>
-
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Video URL
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://youtube.com/shorts/... or tiktok.com/..."
-                    value={submitUrl}
-                    onChange={e => { setSubmitUrl(e.target.value); setSubmitError('') }}
-                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                    style={{
-                      width: '100%', padding: '12px 14px',
-                      background: 'var(--bg-page)',
-                      border: `1px solid ${submitError ? '#ef4444' : 'var(--border-subtle)'}`,
-                      borderRadius: '10px', color: 'var(--text-primary)',
-                      fontSize: '0.9rem', outline: 'none',
-                      transition: 'border-color 0.2s',
-                      boxSizing: 'border-box'
-                    }}
-                    autoFocus
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                    Supported: YouTube, TikTok, Instagram Reels, X (Twitter)
-                  </p>
-                </div>
-
-                {submitError && (
-                  <div style={{
-                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-                    color: '#f87171', padding: '10px 14px', borderRadius: '10px',
-                    fontSize: '0.85rem', marginBottom: '1.25rem'
-                  }}>
-                    ⚠️ {submitError}
-                  </div>
-                )}
-
-                {/* Show which accounts are connected */}
-                {userAccounts.length > 0 && (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-                      Your verified accounts:
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      {userAccounts.map(acc => (
-                        <span key={acc.id} style={{
-                          padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem',
-                          background: 'rgba(16,185,129,0.1)', color: 'var(--green-400)',
-                          border: '1px solid rgba(16,185,129,0.2)', fontWeight: 600
-                        }}>
-                          {acc.platform} · {acc.handle || acc.profileUrl}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {userAccounts.length === 0 && (
-                  <div style={{
-                    background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)',
-                    color: '#fbbf24', padding: '10px 14px', borderRadius: '10px',
-                    fontSize: '0.85rem', marginBottom: '1.25rem'
-                  }}>
-                    ⚠️ No verified accounts. <a href="/accounts" style={{ color: '#fbbf24', fontWeight: 700 }}>Connect one first →</a>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || userAccounts.length === 0}
-                  style={{
-                    width: '100%', padding: '13px',
-                    background: submitting || userAccounts.length === 0
-                      ? 'rgba(55,186,140,0.4)'
-                      : 'linear-gradient(135deg, #37ba8c, #2fa97f)',
-                    color: '#fff', border: 'none', borderRadius: '10px',
-                    fontWeight: 700, fontSize: '0.95rem',
-                    cursor: submitting || userAccounts.length === 0 ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {submitting ? '⏳ Submitting...' : '🚀 Submit Video'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

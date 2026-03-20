@@ -94,6 +94,9 @@ public class WalletController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> distributeCampaign(@PathVariable Long campaignId) {
         int count = walletService.distributeCampaign(campaignId);
-        return ResponseEntity.ok("Distributed earnings for " + count + " submissions");
+        String msg = count == 0
+                ? "No eligible submissions found for this campaign. Nothing was distributed."
+                : "Distributed earnings for " + count + " submission" + (count == 1 ? "" : "s");
+        return ResponseEntity.ok(msg);
     }
 }

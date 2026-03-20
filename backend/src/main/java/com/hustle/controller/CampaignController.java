@@ -1,11 +1,16 @@
 package com.hustle.controller;
 
 
+import com.hustle.dto.response.CampaignRegistrationDto;
+import com.hustle.dto.response.LeaderboardEntryDto;
 import com.hustle.entity.Campaign;
+import com.hustle.repository.UserRepository;
 import com.hustle.service.CampaignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CampaignController {
      private final CampaignService campaignService;
+     private final UserRepository userRepository;
 
      @GetMapping
      public ResponseEntity<List<Campaign>> getActiveCampaigns() {
@@ -50,6 +56,41 @@ public class CampaignController {
     public ResponseEntity<Void> deleteCampaign(@PathVariable Long id) {
         campaignService.deleteCampaign(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/leaderboard")
+    public ResponseEntity<List<LeaderboardEntryDto>> getLeaderboard(@PathVariable Long id) {
+        return ResponseEntity.ok(campaignService.getLeaderboard(id));
+    }
+
+    @PostMapping("/{id}/register")
+    public ResponseEntity<String> register(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = getUserId(userDetails);
+        campaignService.registerForCampaign(userId, id);
+        return ResponseEntity.ok("Registered");
+    }
+
+    @GetMapping("/my-registrations")
+    public ResponseEntity<List<CampaignRegistrationDto>> getMyRegistrations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = getUserId(userDetails);
+        return ResponseEntity.ok(campaignService.getMyRegistrations(userId));
+    }
+
+    @GetMapping("/{id}/is-registered")
+    public ResponseEntity<Boolean> isRegistered(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = getUserId(userDetails);
+        return ResponseEntity.ok(campaignService.isRegistered(userId, id));
+    }
+
+    private Long getUserId(UserDetails userDetails) {
+        return userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getId();
     }
 
 

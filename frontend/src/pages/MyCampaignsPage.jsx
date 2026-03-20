@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { TrendingUp, ExternalLink, Clock, CheckCircle } from 'lucide-react'
+import { Video, ExternalLink, Clock, CheckCircle } from 'lucide-react'
 import Navbar from '../components/layout/Navbar'
 import Sidebar from '../components/layout/Sidebar'
 import CampaignFilter from '../components/campaigns/CampaignFilter'
 import { PlatformStack } from '../components/shared/PlatformIcons'
 import { api } from '../api/client'
+import { getMyRegistrations } from '../api/campaignApi'
 import { formatCurrency } from '../utils/formatCurrency'
 import '../components/campaigns/CampaignCard.css'
 
@@ -69,29 +70,45 @@ function MyCampaignsPage({ isDark, setIsDark }) {
     const load = async () => {
       setLoading(true); setError('')
       try {
-        const subsRes = await api('/submissions/me')
-        const subs = await subsRes.json()
-        if (!Array.isArray(subs)) { setLoading(false); return }
+        // Fetch registered campaigns + submissions in parallel
+        const [regsRes, subsRes] = await Promise.all([
+          getMyRegistrations(),
+          api('/submissions/me'),
+        ])
 
+        // registrationOrder preserves the latest-first order from the backend
+        const registrationOrder = []
         const campaignMap = {}
-        for (const sub of subs) {
-          const cId = sub.campaign?.id || sub.campaignId
-          if (!campaignMap[cId]) {
-            campaignMap[cId] = { campaignId: cId, submissions: [], campaign: sub.campaign || null }
+
+        // Seed map from registrations (may have 0 submissions), already sorted newest-first by backend
+        if (regsRes?.ok) {
+          const regs = await regsRes.json()
+          if (Array.isArray(regs)) {
+            for (const { campaign: camp, registeredAt } of regs) {
+              campaignMap[camp.id] = { campaignId: camp.id, submissions: [], campaign: camp, registeredAt }
+              registrationOrder.push(camp.id)
+            }
           }
-          campaignMap[cId].submissions.push(sub)
         }
 
-        const enriched = await Promise.all(
-          Object.values(campaignMap).map(async (entry) => {
-            if (entry.campaign?.title) return entry
-            try {
-              const r = await api(`/campaigns/${entry.campaignId}`)
-              return { ...entry, campaign: await r.json() }
-            } catch { return entry }
-          })
-        )
-        setCampaignEntries(enriched)
+        // Add/merge submissions (handles old data with no registration record)
+        if (subsRes?.ok) {
+          const subs = await subsRes.json()
+          if (Array.isArray(subs)) {
+            for (const sub of subs) {
+              const cId = sub.campaign?.id || sub.campaignId
+              if (!campaignMap[cId]) {
+                campaignMap[cId] = { campaignId: cId, submissions: [], campaign: sub.campaign || null, registeredAt: null }
+                registrationOrder.push(cId)
+              }
+              campaignMap[cId].submissions.push(sub)
+            }
+          }
+        }
+
+        // Build final list: registered campaigns first (newest first), then any orphan submission-only entries
+        const ordered = registrationOrder.map(id => campaignMap[id]).filter(Boolean)
+        setCampaignEntries(ordered)
       } catch { setError('Failed to load campaigns') }
       finally { setLoading(false) }
     }
@@ -133,9 +150,17 @@ function MyCampaignsPage({ isDark, setIsDark }) {
     , 0)
   }
 
-  const filtered = activeFilter === 'All'
+  const isPaidOut = (entry) =>
+    payoutMap[entry.campaignId] === 'PAID' || entry.campaign?.distributed === true
+
+  const filtered = (activeFilter === 'All'
     ? campaignEntries
     : campaignEntries.filter(e => e.campaign?.category === activeFilter)
+  ).slice().sort((a, b) => {
+    const aPaid = isPaidOut(a) ? 1 : 0
+    const bPaid = isPaidOut(b) ? 1 : 0
+    return aPaid - bPaid // paid campaigns sink to the end, original order preserved otherwise
+  })
 
   return (
     <div className="home-with-sidebar">
@@ -145,7 +170,7 @@ function MyCampaignsPage({ isDark, setIsDark }) {
       </Sidebar>
 
       <div className="main-offset">
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '0.75rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.2rem', letterSpacing: '-0.03em' }}>
             My Campaigns
           </h1>
@@ -159,7 +184,7 @@ function MyCampaignsPage({ isDark, setIsDark }) {
           display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
           padding: '0.8rem 1rem',
           background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.18)',
-          borderRadius: '12px', marginBottom: '1.5rem',
+          borderRadius: '12px', marginTop: '1rem', marginBottom: '2rem',
           fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5,
         }}>
           <Clock size={14} style={{ color: '#60a5fa', flexShrink: 0, marginTop: '1px' }} strokeWidth={2} />
@@ -268,7 +293,7 @@ function MyCampaignsPage({ isDark, setIsDark }) {
                   {/* ── Body ── */}
                   <div className="campaign-card-body" style={{ gap: '0.75rem' }}>
 
-                    {/* My Earnings — main focus */}
+                    {/* My Earnings — centered */}
                     <div style={{
                       padding: '0.75rem 0.9rem',
                       background: earnings > 0
@@ -276,21 +301,11 @@ function MyCampaignsPage({ isDark, setIsDark }) {
                         : 'var(--hover-bg)',
                       border: `1px solid ${earnings > 0 ? 'rgba(52,211,153,0.25)' : 'var(--border-filter)'}`,
                       borderRadius: '12px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      textAlign: 'center',
                     }}>
-                      <div>
-                        <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>My Earnings</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: earnings > 0 ? 'var(--green-400)' : 'var(--text-primary)' }}>
-                          {formatCurrency(earnings)}
-                        </div>
-                      </div>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '10px',
-                        background: earnings > 0 ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.05)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <TrendingUp size={16} strokeWidth={2.5} style={{ color: earnings > 0 ? 'var(--green-400)' : 'var(--text-muted)' }} />
+                      <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>My Earnings</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: earnings > 0 ? 'var(--green-400)' : 'var(--text-primary)' }}>
+                        {formatCurrency(earnings)}
                       </div>
                     </div>
 
@@ -333,7 +348,7 @@ function MyCampaignsPage({ isDark, setIsDark }) {
                         title="View campaign details"
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          padding: '8px 11px',
+                          width: 38, height: 34,
                           background: 'var(--hover-bg)', border: '1px solid var(--border-filter)',
                           borderRadius: '10px', color: 'var(--text-muted)',
                           textDecoration: 'none', transition: 'border-color 0.2s, color 0.2s',
@@ -344,11 +359,12 @@ function MyCampaignsPage({ isDark, setIsDark }) {
                       >
                         <ExternalLink size={13} strokeWidth={2} />
                       </Link>
+                      {/* Submit / View — center, takes remaining space */}
                       {camp?.campaignStatus === 'ACTIVE' ? (
                         <button
                           onClick={e => { e.stopPropagation(); openSubmitForCampaign(entry.campaignId, camp?.title) }}
                           style={{
-                            flex: 1, padding: '8px 0',
+                            flex: 1, height: 34,
                             background: 'linear-gradient(135deg, #37ba8c, #2fa97f)',
                             border: 'none', borderRadius: '10px',
                             color: '#fff', fontSize: '0.8rem', fontWeight: 700,
@@ -359,14 +375,29 @@ function MyCampaignsPage({ isDark, setIsDark }) {
                         </button>
                       ) : (
                         <div style={{
-                          flex: 1, padding: '8px 0', textAlign: 'center',
+                          flex: 1, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: 'var(--hover-bg)', border: '1px solid var(--border-filter)',
                           borderRadius: '10px', color: 'var(--text-muted)',
-                          fontSize: '0.75rem', fontWeight: 600,
+                          fontSize: '0.72rem', fontWeight: 600,
                         }}>
-                          View Submissions →
+                          View Submissions
                         </div>
                       )}
+                      {/* Submissions count — same fixed size as ExternalLink button */}
+                      <div
+                        title={`${entry.submissions.length} submission${entry.submissions.length !== 1 ? 's' : ''}`}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                          width: 38, height: 34,
+                          background: 'var(--hover-bg)', border: '1px solid var(--border-filter)',
+                          borderRadius: '10px', flexShrink: 0,
+                        }}
+                      >
+                        <Video size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+                          {entry.submissions.length}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
